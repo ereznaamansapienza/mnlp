@@ -112,7 +112,10 @@ def main():
     df = store.attach_rankings_from_jsonl(df, ranking_path)
 
     if args.limit is not None:
-        df = df.head(args.limit).reset_index(drop=True)
+        df = df.sample(
+            n=args.limit,
+            random_state=cfg.get("seed", 42),
+        ).reset_index(drop=True)
 
     model = LMGenerator(
         model_name=cfg["model"]["name"],
