@@ -1,0 +1,12 @@
+torch
+transformers>=4.51.0
+datasets
+accelerate
+bitsandbytes
+peft
+pandas
+scikit-learn
+nltk
+pyyaml
+tqdm
+requests

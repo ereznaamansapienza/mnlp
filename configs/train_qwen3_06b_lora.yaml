@@ -1,0 +1,45 @@
+seed: 42
+
+dataset:
+  url: sapienzanlp-course-materials/hw-mnlp-2026
+  local_path: "/leonardo_work/IscrC_MNLP26/apromots_doubleN/hw2/data/hw-mnlp-2026"
+  dev_size: 0.2
+
+model:
+  name: "/leonardo_work/IscrC_MNLP26/apromots_doubleN/models/Qwen3-0.6B"
+  load_in_4bit: true
+  max_seq_length: 1024
+
+retrieval:
+  top_k: 3
+  train_ranking_path: "./doubleN-train-e5-mnrl-reranker-minilm-ft-full.jsonl"
+  test_ranking_path: "./doubleN-test-e5-mnrl-reranker-minilm-ft-full.jsonl"
+  blind_ranking_path: "./doubleN-blind-e5-mnrl-reranker-minilm-ft-full.jsonl"
+
+sft_data:
+  top_k: 3
+  # Main training variants for RAG fine-tuning.
+  # No external train rankings are required for oracle/no_answer variants.
+  variants: [oracle_first, oracle_random, no_answer]
+  no_answer_ratio: 0.3
+
+training:
+  output_dir: outputs/qwen3_06b_rag_lora
+  num_train_epochs: 1
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0002
+  warmup_steps: 10
+  logging_steps: 10
+  save_steps: 200
+  lora_r: 32
+  lora_alpha: 64
+  lora_dropout: 0.05
+
+generation:
+  output_dir: outputs/submissions
+  adapter_path: outputs/qwen3_06b_rag_lora/final_adapter
+  max_new_tokens: 128
+  batch_size: 4
+  variant_name: qwen3-0.6b-rag-lora
