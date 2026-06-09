@@ -134,19 +134,21 @@ class SFTDatasetBuilder:
         for row in df.itertuples():
             qid = str(row.query_id)
             if "rag_retrieved" in variants:
-                chunks = self._get_rag_retrieved_chunks(row)
+                indices = self._rag_retrieved_indices(row)
 
                 if self._rag_retrieved_contains_answer(row):
-                    response = self._get_answer(row)
+                    response = self._answer_text(row)
                 else:
-                    response = self._get_no_answer_response()
+                    response = self._no_answer_text()
 
-                examples.append(self._build_example(
-                    row,
-                    chunks,
-                    response,
-                    "rag_retrieved",
-                ))
+                examples.append(
+                    self._build_example(
+                        row,
+                        indices,
+                        response,
+                        "rag_retrieved",
+                    )
+                )
             if "oracle_first" in variants:
                 examples.append(self._build_example(row, self._oracle_first_indices(row), self._answer_text(row), "oracle_first"))
             if "oracle_random" in variants:
