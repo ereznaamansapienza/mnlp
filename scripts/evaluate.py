@@ -75,6 +75,7 @@ def main():
         "query",
         "short_answer",
         "answer_pos",
+        "candidate_chunks",
     ]
 
     reference_cols = [
