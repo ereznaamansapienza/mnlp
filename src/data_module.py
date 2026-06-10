@@ -73,26 +73,10 @@ class SFTDatasetBuilder:
         self.rng.shuffle(indices)
         return indices
 
-    def _no_answer_indices(self, row) -> List[int]:
-        correct_idx = int(row.answer_pos)
-        distractors = self._distractor_indices(row, correct_idx)
-        k = min(self.top_k, len(distractors))
-        return self.rng.sample(distractors, k=k)
-
     def _rag_retrieved_indices(self, row) -> List[int]:
         if not hasattr(row, "retrieved_chunks"):
             raise ValueError("rag_retrieved variant requires a retrieved_chunks column.")
         return list(row.retrieved_chunks[: self.top_k])
-    
-    def _get_rag_retrieved_chunks(self, row) -> List[str]:
-        if not hasattr(row, "retrieved_chunks"):
-            raise ValueError(
-                "rag_retrieved variant requires a retrieved_chunks column. "
-                "Attach train rankings first with RetrievalStore.attach_rankings_from_jsonl(...)."
-            )
-
-        chunk_indices = list(row.retrieved_chunks[:self.top_k])
-        return [row.candidate_chunks[i] for i in chunk_indices]
 
     def _rag_retrieved_contains_answer(self, row) -> bool:
         if not hasattr(row, "retrieved_chunks"):
@@ -114,6 +98,31 @@ class SFTDatasetBuilder:
             "variant": variant,
         }
 
+    def _chunks_contain_answer_text(self, row, indices: List[int]) -> bool:
+        answer = self._answer_text(row).lower()
+        chunks = self._chunks_from_indices(row, indices)
+        joined = " ".join(str(chunk) for chunk in chunks).lower()
+        return answer in joined
+
+
+    def _no_answer_indices(self, row) -> List[int]:
+        correct_idx = int(row.answer_pos)
+        answer = self._answer_text(row).lower()
+
+        distractors = [
+            i for i in range(len(row.candidate_chunks))
+            if i != correct_idx
+            and answer not in str(row.candidate_chunks[i]).lower()
+        ]
+
+        k = min(self.top_k, len(distractors))
+
+        if k == 0:
+            return []
+
+        return self.rng.sample(distractors, k=k)
+
+
     def build_examples(
         self,
         df: pd.DataFrame,
@@ -122,21 +131,30 @@ class SFTDatasetBuilder:
     ) -> List[Dict]:
         if not isinstance(df, pd.DataFrame):
             df = df.to_pandas()
+
         df = df.reset_index(drop=True)
 
         no_answer_ids = set()
         if "no_answer" in variants and no_answer_ratio > 0:
             no_answer_ids = set(
-                df.sample(frac=no_answer_ratio, random_state=self.seed)["query_id"].astype(str).tolist()
+                df.sample(
+                    frac=no_answer_ratio,
+                    random_state=self.seed,
+                )["query_id"].astype(str).tolist()
             )
 
         examples: List[Dict] = []
+
         for row in df.itertuples():
             qid = str(row.query_id)
+
             if "rag_retrieved" in variants:
                 indices = self._rag_retrieved_indices(row)
 
-                if self._rag_retrieved_contains_answer(row):
+                if (
+                    self._rag_retrieved_contains_answer(row)
+                    or self._chunks_contain_answer_text(row, indices)
+                ):
                     response = self._answer_text(row)
                 else:
                     response = self._no_answer_text()
@@ -149,12 +167,39 @@ class SFTDatasetBuilder:
                         "rag_retrieved",
                     )
                 )
+
             if "oracle_first" in variants:
-                examples.append(self._build_example(row, self._oracle_first_indices(row), self._answer_text(row), "oracle_first"))
+                examples.append(
+                    self._build_example(
+                        row,
+                        self._oracle_first_indices(row),
+                        self._answer_text(row),
+                        "oracle_first",
+                    )
+                )
+
             if "oracle_random" in variants:
-                examples.append(self._build_example(row, self._oracle_random_indices(row), self._answer_text(row), "oracle_random"))
+                examples.append(
+                    self._build_example(
+                        row,
+                        self._oracle_random_indices(row),
+                        self._answer_text(row),
+                        "oracle_random",
+                    )
+                )
+
             if "no_answer" in variants and qid in no_answer_ids:
-                examples.append(self._build_example(row, self._no_answer_indices(row), self._no_answer_text(), "no_answer"))
+                indices = self._no_answer_indices(row)
+
+                if len(indices) == self.top_k:
+                    examples.append(
+                        self._build_example(
+                            row,
+                            indices,
+                            self._no_answer_text(),
+                            "no_answer",
+                        )
+                    )
 
         self.rng.shuffle(examples)
         return examples

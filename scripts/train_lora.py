@@ -12,6 +12,7 @@ from src.data_module import DataModule, SFTDatasetBuilder
 from src.prompts import PromptBuilder
 from src.training import train_lora
 from src.utils import set_seed
+from collections import Counter
 
 
 def main():
@@ -69,6 +70,12 @@ def main():
         variants=variants,
         no_answer_ratio=cfg["sft_data"].get("no_answer_ratio", 0.3),
     )
+
+    print("Train dataset size:", len(train_dataset))
+    print("Train variants:", Counter(train_dataset["variant"]))
+
+    print("Val dataset size:", len(val_dataset))
+    print("Val variants:", Counter(val_dataset["variant"]))
 
     final_dir = train_lora(
         train_dataset=train_dataset,
