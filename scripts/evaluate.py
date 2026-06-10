@@ -97,9 +97,7 @@ def main():
             f"Check that --split matches the generated file."
         )
 
-    records = eval_df.to_dict(orient="records")
-
-    metrics = AnswerEvaluator.evaluate_dataset(records)
+    metrics = AnswerEvaluator.evaluate_dataframe(eval_df)
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
 

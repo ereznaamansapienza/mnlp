@@ -6,6 +6,15 @@ import pandas as pd
 from nltk.translate.meteor_score import meteor_score
 from nltk.tokenize import word_tokenize
 
+import os
+import nltk
+NLTK_DATA_DIR = os.environ.get(
+    "NLTK_DATA",
+    "/leonardo_work/IscrC_MNLP26/apromots_doubleN/nltk_data",
+)
+if NLTK_DATA_DIR not in nltk.data.path:
+    nltk.data.path.append(NLTK_DATA_DIR)
+
 
 class AnswerEvaluator:
     @staticmethod
